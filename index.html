@@ -759,7 +759,16 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
 
   <!-- ALL BILLS LIST -->
   <div style="margin-top:16px;">
-    <div style="font-size:13px;font-weight:800;color:var(--g1);margin-bottom:10px;">📋 Recent Bills</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:800;color:var(--g1);">📋 Recent Bills</div>
+      <select id="bill-filter" onchange="renderBillsPage()" style="padding:6px 10px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:11px;font-weight:700;background:#fff;font-family:inherit;cursor:pointer;">
+        <option value="all">All Bills</option>
+        <option value="today">Today Only</option>
+        <option value="due">Due Only</option>
+        <option value="paid">Paid Only</option>
+      </select>
+    </div>
+    <input id="bill-search" placeholder="🔍 Search by name, mobile, bill no..." oninput="renderBillsPage()" style="width:100%;padding:10px 12px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:10px;outline:none;"/>
     <div id="bills-list"></div>
   </div>
 </div>
@@ -1672,6 +1681,162 @@ function waSavedBill(billNo) {
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg));
 }
 
+
+// ── DUE PAYMENT FUNCTIONS ──
+var PAYING_BILL = null;
+
+function openDuePayModal(billNo) {
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    var s = DB.sales[i];
+    if((s.bill_no||s.billNo) === billNo) { sale = s; break; }
+  }
+  if(!sale) { toast('Bill not found','e'); return; }
+  PAYING_BILL = sale;
+
+  var bal = parseFloat(sale.balance||0);
+  if(bal <= 0) { toast('No balance due on this bill','e'); return; }
+
+  // Populate modal
+  document.getElementById('dp-billno').textContent = sale.bill_no || sale.billNo || '';
+  document.getElementById('dp-customer').textContent = sale.farmer_name || sale.name || 'Customer';
+  document.getElementById('dp-total').textContent = '₹'+parseFloat(sale.total||0).toLocaleString('en-IN');
+  document.getElementById('dp-paid').textContent = '₹'+parseFloat(sale.paid||0).toLocaleString('en-IN');
+  document.getElementById('dp-balance').textContent = '₹'+bal.toLocaleString('en-IN');
+  document.getElementById('dp-amount').value = bal;
+  document.getElementById('dp-amount').max = bal;
+  document.getElementById('dp-paymode').value = 'Cash';
+  document.getElementById('dp-upi-ref').value = '';
+  document.getElementById('dp-notes').value = '';
+  document.getElementById('dp-modal').style.display = 'flex';
+}
+
+function closeDuePayModal() {
+  document.getElementById('dp-modal').style.display = 'none';
+  PAYING_BILL = null;
+}
+
+function saveDuePayment() {
+  if(!PAYING_BILL) { toast('No bill selected','e'); return; }
+  var amt = parseFloat(document.getElementById('dp-amount').value)||0;
+  var mode = document.getElementById('dp-paymode').value || 'Cash';
+  var ref = document.getElementById('dp-upi-ref').value || '';
+  var notes = document.getElementById('dp-notes').value || '';
+  var bal = parseFloat(PAYING_BILL.balance||0);
+
+  if(amt <= 0) { toast('Amount enter cheyandi','e'); return; }
+  if(amt > bal) { toast('Amount > balance ('+bal+')','e'); return; }
+  if(mode === 'UPI' && !ref) { toast('UPI ref enter cheyandi','e'); return; }
+
+  var billNo = PAYING_BILL.bill_no || PAYING_BILL.billNo;
+  toast('⏳ Recording payment...');
+
+  // 1. Insert into sales_payments
+  var paymentRec = {
+    bill_no: billNo,
+    farmer_name: PAYING_BILL.farmer_name || PAYING_BILL.name || '',
+    mobile: PAYING_BILL.mobile || '',
+    village: PAYING_BILL.village || '',
+    payment_date: new Date().toISOString().slice(0,10),
+    amount: amt,
+    pay_mode: mode,
+    upi_ref: mode === 'UPI' ? ref : null,
+    cheque_no: mode === 'Cheque' ? ref : null,
+    notes: notes || ('Due payment for ' + billNo),
+    received_by: (sessionStorage.getItem('sf_name') || 'Counter')
+  };
+
+  sbInsert('sales_payments', [paymentRec])
+    .then(function() {
+      // 2. Update sales table: paid += amt, balance -= amt
+      var newPaid = parseFloat(PAYING_BILL.paid||0) + amt;
+      var newBal = Math.max(0, bal - amt);
+      var newStatus = newBal > 0 ? 'Follow-up' : 'Sold';
+
+      return sbPatch('sales', 'bill_no=eq.'+encodeURIComponent(billNo), {
+        paid: newPaid,
+        balance: newBal,
+        status: newStatus
+      });
+    })
+    .then(function() {
+      // 3. Update local DB.sales
+      for(var i=0; i<DB.sales.length; i++) {
+        if((DB.sales[i].bill_no||DB.sales[i].billNo) === billNo) {
+          DB.sales[i].paid = parseFloat(DB.sales[i].paid||0) + amt;
+          DB.sales[i].balance = Math.max(0, parseFloat(DB.sales[i].balance||0) - amt);
+          if(DB.sales[i].balance <= 0) DB.sales[i].status = 'Sold';
+          break;
+        }
+      }
+
+      // 4. Update farmer's total_balance
+      if(PAYING_BILL.mobile) {
+        var farmerNewBal = 0;
+        for(var f=0; f<(FARMERS||[]).length; f++) {
+          if(FARMERS[f].mobile === PAYING_BILL.mobile) {
+            farmerNewBal = Math.max(0, parseFloat(FARMERS[f].total_balance||0) - amt);
+            FARMERS[f].total_balance = farmerNewBal;
+            break;
+          }
+        }
+        sbPatch('farmers', 'mobile=eq.'+encodeURIComponent(PAYING_BILL.mobile), {
+          total_balance: farmerNewBal
+        }).catch(function(){});
+      }
+
+      // 5. Broadcast
+      try {
+        var bc = new BroadcastChannel('sf_payment_sync');
+        bc.postMessage({type:'payment_received', bill_no:billNo, amount:amt, mode:mode});
+        bc.close();
+        var bc2 = new BroadcastChannel('sf_sale_sync');
+        bc2.postMessage({type:'sale_updated', bill_no:billNo});
+        bc2.close();
+      } catch(e){}
+
+      // 6. UI update
+      toast('✅ ₹'+amt+' recorded for '+billNo);
+      closeDuePayModal();
+      renderBillsPage();
+      renderToday();
+    })
+    .catch(function(e) {
+      toast('❌ Save failed: '+e.message, 'e');
+    });
+}
+
+function setQuickPayAmount(pct) {
+  if(!PAYING_BILL) return;
+  var bal = parseFloat(PAYING_BILL.balance||0);
+  var amt = pct === 100 ? bal : Math.round(bal * pct / 100);
+  document.getElementById('dp-amount').value = amt;
+}
+
+function viewBillPaymentHistory(billNo) {
+  toast('⏳ Loading history...');
+  sbSelect('sales_payments', 'select=*&bill_no=eq.'+encodeURIComponent(billNo)+'&order=payment_date.desc')
+    .then(function(payments) {
+      if(!payments || !payments.length) {
+        alert('No payment history for ' + billNo);
+        return;
+      }
+      var lines = ['Payment History for '+billNo+'\n'];
+      var total = 0;
+      for(var i=0; i<payments.length; i++) {
+        var p = payments[i];
+        total += parseFloat(p.amount||0);
+        lines.push((i+1) + '. ' + p.payment_date + ' — ₹' + p.amount + ' (' + p.pay_mode + ')'
+          + (p.upi_ref ? ' [' + p.upi_ref + ']' : '')
+          + (p.notes ? '\n   '+p.notes : ''));
+      }
+      lines.push('\n━━━━━━━━━━━━━━━━━━━');
+      lines.push('Total Received: ₹' + total.toLocaleString('en-IN'));
+      alert(lines.join('\n'));
+    })
+    .catch(function(e){ toast('Load failed: '+e.message,'e'); });
+}
+
 function renderBillsPage() {
   var cont = document.getElementById('bills-list');
   if(!cont) return;
@@ -1684,8 +1849,21 @@ function renderBillsPage() {
     var _bn = _b.bill_no || _b.billNo || ('row_'+_bi);
     if(!seen[_bn]) { seen[_bn] = 1; bills.push(_b); }
   }
-  bills = bills.slice(0, 100);
+  // Apply filter + search
+  var filter = ((document.getElementById('bill-filter')||{}).value)||'all';
+  var query = (((document.getElementById('bill-search')||{}).value)||'').toLowerCase();
   var today = new Date().toISOString().slice(0,10);
+  bills = bills.filter(function(b){
+    if(filter === 'today' && (b.bill_date||'').slice(0,10) !== today) return false;
+    if(filter === 'due'   && parseFloat(b.balance||0) <= 0) return false;
+    if(filter === 'paid'  && parseFloat(b.balance||0) > 0) return false;
+    if(query) {
+      var s = ((b.bill_no||'')+(b.farmer_name||b.name||'')+(b.mobile||'')).toLowerCase();
+      if(s.indexOf(query) === -1) return false;
+    }
+    return true;
+  });
+  bills = bills.slice(0, 100);
   var todayCount = 0;
   for(var _i=0; _i<bills.length; _i++) {
     if((bills[_i].bill_date||'').slice(0,10) === today) todayCount++;
@@ -1729,10 +1907,12 @@ function renderBillsPage() {
       + '</div>'
       + '</div>'
       // Action buttons row
-      + '<div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f1f5f9;padding-top:8px;" onclick="event.stopPropagation();">'
-      + '<button onclick="event.stopPropagation();viewBill(\''+safeBn+'\')" style="flex:1;padding:6px 10px;background:#1b4332;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">👁️ View</button>'
-      + '<button onclick="event.stopPropagation();printSavedBill(\''+safeBn+'\')" style="flex:1;padding:6px 10px;background:#fff;color:#1b4332;border:1px solid #1b4332;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🖨️ Print</button>'
-      + '<button onclick="event.stopPropagation();waSavedBill(\''+safeBn+'\')" style="flex:1;padding:6px 10px;background:#25d366;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">💬 WA</button>'
+      + '<div style="display:flex;gap:6px;margin-top:8px;border-top:1px solid #f1f5f9;padding-top:8px;flex-wrap:wrap;" onclick="event.stopPropagation();">'
+      + '<button onclick="event.stopPropagation();viewBill(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#1b4332;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">👁️ View</button>'
+      + '<button onclick="event.stopPropagation();printSavedBill(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#1b4332;border:1px solid #1b4332;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🖨️ Print</button>'
+      + '<button onclick="event.stopPropagation();waSavedBill(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#25d366;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">💬 WA</button>'
+      + (balDue > 0 ? '<button onclick="event.stopPropagation();openDuePayModal(\''+safeBn+'\')" style="flex:1;min-width:80px;padding:6px 8px;background:linear-gradient(135deg,#b45309,#e9a319);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;">💳 Pay Due</button>' : '')
+      + '<button onclick="event.stopPropagation();viewBillPaymentHistory(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#7c3aed;border:1px solid #7c3aed;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">📜 Hist</button>'
       + '</div>'
     + '</div>';
   }
@@ -5070,5 +5250,63 @@ window.addEventListener('DOMContentLoaded', appInit);
     </button>
   </div>
 </div>
+<!-- DUE PAYMENT MODAL -->
+<div id="dp-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;width:100%;max-width:500px;border-radius:24px 24px 0 0;padding:20px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:18px;font-weight:800;color:#1b4332;">💳 Record Payment</div>
+      <button onclick="closeDuePayModal()" style="background:#f1f5f9;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;">✕</button>
+    </div>
+
+    <div style="background:#f8faf8;border-radius:12px;padding:12px;margin-bottom:14px;border:1px solid #d4e8d4;">
+      <div style="font-size:11px;color:#64748b;">Bill</div>
+      <div id="dp-billno" style="font-size:13px;font-weight:800;color:#1b4332;font-family:monospace;"></div>
+      <div style="font-size:13px;font-weight:700;margin-top:6px;" id="dp-customer"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;text-align:center;">
+        <div><div style="font-size:10px;color:#64748b;">Total</div><div id="dp-total" style="font-size:14px;font-weight:800;"></div></div>
+        <div><div style="font-size:10px;color:#64748b;">Paid</div><div id="dp-paid" style="font-size:14px;font-weight:800;color:#16a34a;"></div></div>
+        <div><div style="font-size:10px;color:#64748b;">Due</div><div id="dp-balance" style="font-size:14px;font-weight:800;color:#dc2626;"></div></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:#3d5a44;">Amount Receiving (₹)<span style="color:#dc2626;">*</span></label>
+      <input id="dp-amount" type="number" min="1" placeholder="0" style="width:100%;padding:14px;border:2px solid #d4e8d4;border-radius:10px;font-size:20px;font-weight:800;color:#1b4332;outline:none;text-align:center;font-family:monospace;"/>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button onclick="setQuickPayAmount(25)" style="flex:1;padding:6px;background:#f0fdf4;border:1px solid #86efac;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:#166534;">25%</button>
+        <button onclick="setQuickPayAmount(50)" style="flex:1;padding:6px;background:#f0fdf4;border:1px solid #86efac;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:#166534;">50%</button>
+        <button onclick="setQuickPayAmount(75)" style="flex:1;padding:6px;background:#f0fdf4;border:1px solid #86efac;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:#166534;">75%</button>
+        <button onclick="setQuickPayAmount(100)" style="flex:1;padding:6px;background:#1b4332;border:1px solid #1b4332;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;color:#fff;">FULL</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:#3d5a44;">Pay Mode</label>
+      <select id="dp-paymode" onchange="document.getElementById('dp-upi-ref').style.display=(this.value==='Cash'?'none':'block')" style="width:100%;padding:10px;border:1.5px solid #d4e8d4;border-radius:10px;font-size:13px;font-family:inherit;">
+        <option value="Cash">💰 Cash (నగదు)</option>
+        <option value="UPI">📱 UPI</option>
+        <option value="Bank">🏦 Bank Transfer</option>
+        <option value="Cheque">📝 Cheque</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:#3d5a44;">UPI / Cheque Ref</label>
+      <input id="dp-upi-ref" placeholder="Transaction ID / Cheque No (optional for cash)" style="width:100%;padding:10px;border:1.5px solid #d4e8d4;border-radius:10px;font-size:12px;font-family:monospace;"/>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px;font-weight:700;color:#3d5a44;">Notes</label>
+      <input id="dp-notes" placeholder="Partial payment, etc." style="width:100%;padding:10px;border:1.5px solid #d4e8d4;border-radius:10px;font-size:12px;font-family:inherit;"/>
+    </div>
+
+    <button onclick="saveDuePayment()" style="width:100%;padding:14px;background:linear-gradient(135deg,#1b4332,#2d6a4f);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
+      ✅ Record Payment
+    </button>
+  </div>
+</div>
+
+<!-- BILL FILTER ROW -->
+
 </body>
 </html>
