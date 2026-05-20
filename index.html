@@ -761,14 +761,85 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
   <div style="margin-top:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
       <div style="font-size:13px;font-weight:800;color:var(--g1);">📋 Recent Bills</div>
-      <select id="bill-filter" onchange="renderBillsPage()" style="padding:6px 10px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:11px;font-weight:700;background:#fff;font-family:inherit;cursor:pointer;">
-        <option value="all">All Bills</option>
-        <option value="today">Today Only</option>
-        <option value="due">Due Only</option>
-        <option value="paid">Paid Only</option>
-      </select>
+      <button onclick="toggleBillFilters()" style="padding:6px 10px;background:#1b4332;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;" id="filter-toggle-btn">⚙️ Filters</button>
     </div>
-    <input id="bill-search" placeholder="🔍 Search by name, mobile, bill no..." oninput="renderBillsPage()" style="width:100%;padding:10px 12px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:10px;outline:none;"/>
+
+    <input id="bill-search" placeholder="🔍 Search by name, mobile, bill no..." oninput="renderBillsPage()" style="width:100%;padding:10px 12px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:8px;outline:none;"/>
+
+    <!-- Advanced Filters Panel (collapsible) -->
+    <div id="bill-filters-panel" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Status</label>
+          <select id="bill-filter" onchange="renderBillsPage()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:inherit;background:#fff;">
+            <option value="all">All Bills</option>
+            <option value="due">Due Only</option>
+            <option value="paid">Paid Only</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Period</label>
+          <select id="bill-period" onchange="onPeriodChange()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:inherit;background:#fff;">
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This Week</option>
+            <option value="this_month">This Month</option>
+            <option value="last_month">Last Month</option>
+            <option value="this_year">This Year</option>
+            <option value="custom_date">Custom Date</option>
+            <option value="custom_month">Custom Month</option>
+            <option value="custom_year">Custom Year</option>
+            <option value="custom_range">Custom Range</option>
+          </select>
+        </div>
+      </div>
+      <!-- Custom date inputs (shown based on period) -->
+      <div id="custom-date-row" style="display:none;margin-top:6px;">
+        <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Date</label>
+        <input type="date" id="bill-custom-date" onchange="renderBillsPage()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:inherit;"/>
+      </div>
+      <div id="custom-month-row" style="display:none;margin-top:6px;">
+        <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Month</label>
+        <input type="month" id="bill-custom-month" onchange="renderBillsPage()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:inherit;"/>
+      </div>
+      <div id="custom-year-row" style="display:none;margin-top:6px;">
+        <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Year</label>
+        <input type="number" id="bill-custom-year" min="2024" max="2030" onchange="renderBillsPage()" placeholder="2026" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:monospace;"/>
+      </div>
+      <div id="custom-range-row" style="display:none;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">From</label>
+          <input type="date" id="bill-from-date" onchange="renderBillsPage()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;"/>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">To</label>
+          <input type="date" id="bill-to-date" onchange="renderBillsPage()" style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats (always visible) -->
+    <div id="bill-stats" style="background:linear-gradient(135deg,#1b4332,#2d6a4f);color:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center;">
+      <div>
+        <div style="font-size:9px;text-transform:uppercase;opacity:.8;letter-spacing:.5px;">Bills</div>
+        <div id="stats-count" style="font-size:16px;font-weight:900;font-family:monospace;">0</div>
+      </div>
+      <div style="border-left:1px solid rgba(255,255,255,.2);">
+        <div style="font-size:9px;text-transform:uppercase;opacity:.8;letter-spacing:.5px;">Sales</div>
+        <div id="stats-total" style="font-size:16px;font-weight:900;font-family:monospace;">₹0</div>
+      </div>
+      <div style="border-left:1px solid rgba(255,255,255,.2);">
+        <div style="font-size:9px;text-transform:uppercase;opacity:.8;letter-spacing:.5px;">GST</div>
+        <div id="stats-gst" style="font-size:16px;font-weight:900;font-family:monospace;color:#a7f3d0;">₹0</div>
+      </div>
+      <div style="border-left:1px solid rgba(255,255,255,.2);">
+        <div style="font-size:9px;text-transform:uppercase;opacity:.8;letter-spacing:.5px;">Due</div>
+        <div id="stats-due" style="font-size:16px;font-weight:900;font-family:monospace;color:#fde68a;">₹0</div>
+      </div>
+    </div>
+    <!-- Active filter indicator -->
+    <div id="filter-indicator" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#166534;font-weight:700;"></div>
     <div id="bills-list"></div>
   </div>
 </div>
@@ -1153,7 +1224,11 @@ function sbPatch(table, match, data) {
   return new Promise(function(resolve, reject) {
     var xhr = new XMLHttpRequest();
     xhr.open('PATCH', url, true);
-    xhr.withCredentials = false; xhr.timeout = 15000;
+    xhr.withCredentials = false;
+  xhr.setRequestHeader('apikey', SB_KEY);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+  xhr.setRequestHeader('apikey', SB_KEY);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY); xhr.timeout = 15000;
     xhr.setRequestHeader('Content-Type','application/json');
     xhr.setRequestHeader('Prefer','return=representation');
     xhr.onreadystatechange = function() {
@@ -1174,6 +1249,8 @@ function sbInsert(table, row) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.withCredentials = false;
+  xhr.setRequestHeader('apikey', SB_KEY);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
     xhr.timeout = 15000;
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Prefer', 'return=representation');
@@ -1204,6 +1281,8 @@ function sbUpsert(table, row, onConflict) {
     var xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
     xhr.withCredentials = false;
+  xhr.setRequestHeader('apikey', SB_KEY);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
     xhr.timeout = 20000;
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Prefer', 'return=representation,resolution=merge-duplicates');
@@ -1224,34 +1303,26 @@ function sbUpsert(table, row, onConflict) {
   });
 }
 function sbUpdate(table, query, body) { return sbFetch('PATCH', table, body, query); }
-function sbDelete(table, query)       { return sbFetch('DELETE', table, null, query); }
-
-// ── Status ────────────────────────────────────────────────────────────────
-// (duplicate setSBStatus removed — using later definition)
-
-
-function autoClearStaleCache() {
-  // Keep auth + users cache, clear everything else
-  var keep = ['sf_email','sf_name','sf_role','sf_ts','sf_users','sf_sheets_url','sf_daily_report_sent'];
-  try {
-    var toDelete = [];
-    for(var i=0; i<sessionStorage.length; i++) {
-      var k = sessionStorage.key(i);
-      if(k && keep.indexOf(k) === -1) toDelete.push(k);
-    }
-    toDelete.forEach(function(k){ try { sessionStorage.removeItem(k); } catch(e){} });
-  } catch(e){}
-  // Clear ALL localStorage (we don't use it for data anymore)
-  try {
-    for(var j=localStorage.length-1; j>=0; j--) {
-      var lk = localStorage.key(j);
-      if(lk && keep.indexOf(lk) === -1 && (lk.indexOf('sf_')===0 || lk.indexOf('sb-')===0)) {
-        localStorage.removeItem(lk);
-      }
-    }
-  } catch(e){}
+function sbDelete(table, q) {
+  var url = SB_URL + '/rest/v1/' + table + '?' + q + '&apikey=' + SB_KEY;
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('DELETE', url, true);
+    xhr.withCredentials = false; xhr.timeout = 15000;
+    xhr.setRequestHeader('apikey', SB_KEY);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + SB_KEY);
+    xhr.setRequestHeader('Prefer', 'return=representation');
+    xhr.onreadystatechange = function() {
+      if(xhr.readyState !== 4) return;
+      if(xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText || '[]')); } catch(e) { resolve([]); }
+      } else { reject(new Error('HTTP ' + xhr.status)); }
+    };
+    xhr.onerror = function(){ reject(new Error('Network error')); };
+    xhr.ontimeout = function(){ reject(new Error('Timeout')); };
+    xhr.send();
+  });
 }
-
 function forceRefreshAll() {
   toast('🔄 Reloading from Supabase...');
   autoClearStaleCache();
@@ -1322,7 +1393,7 @@ function mapSaleToSB(s) {
     items: s.items||[],
     sub_total: parseFloat(s.sub||s.sub_total)||0,
     discount: parseFloat(s.disc||s.discount)||0,
-    gst_pct: parseFloat(s.gstPct||s.gst_pct)||18,
+    gst_pct: (s.gstPct!=null&&s.gstPct!==undefined) ? parseFloat(s.gstPct) : (s.gst_pct!=null&&s.gst_pct!==undefined ? parseFloat(s.gst_pct) : 18),
     gst_inclusive: true,
     taxable_value: parseFloat(s.taxable||s.taxable_value)||0,
     cgst: parseFloat(s.cgst)||0, sgst: parseFloat(s.sgst)||0,
@@ -1543,10 +1614,45 @@ function renderBillFromRecord(s) {
   var items = s.items || [];
   var sub = parseFloat(s.sub || s.sub_total || 0);
   var disc = parseFloat(s.discount || 0);
-  var gst = parseFloat(s.gst_amt || s.cgst + s.sgst || 0);
   var total = parseFloat(s.total || 0);
   var paid = parseFloat(s.paid || 0);
   var bal = parseFloat(s.balance || 0);
+  // null/undefined → default 18%; stored 0 = truly 0% (exempt)
+  var gstPct_calc = (s.gst_pct !== null && s.gst_pct !== undefined && s.gst_pct !== '') ? parseFloat(s.gst_pct) : 18;
+  // Try stored CGST/SGST first
+  var cgst_stored = parseFloat(s.cgst) || 0;
+  var sgst_stored = parseFloat(s.sgst) || 0;
+  var gst = cgst_stored + sgst_stored;
+
+  // === LIVE PRODUCT GST LOOKUP ===
+  // If old bill (cgst not stored = 0), look up CURRENT product gst_pct
+  // from DB.products — reflects Admin Panel changes in real-time
+  if(cgst_stored === 0 && sgst_stored === 0 && (s.items||[]).length > 0) {
+    // Get first item's product name and look up in current DB
+    var firstItemName = (s.items[0].name||'').toLowerCase();
+    var liveGst = null;
+    var prods = (typeof DB !== 'undefined' ? (DB.products||[]) : []);
+    for(var _rg=0; _rg<prods.length; _rg++) {
+      var _pn = (prods[_rg].name||prods[_rg].n||'').toLowerCase();
+      if(_pn === firstItemName) {
+        var _pg = parseFloat(prods[_rg].gst||prods[_rg].gst_pct);
+        if(!isNaN(_pg)) { liveGst = _pg; break; }
+      }
+    }
+    // If all items are same product OR single item, use live gst
+    if(liveGst !== null) {
+      gstPct_calc = liveGst;
+      console.log('[renderBillFromRecord] Live GST for '+firstItemName+': '+liveGst+'%');
+    }
+  }
+
+  var isExempt = (gstPct_calc === 0);
+  if(gst === 0 && total > 0 && gstPct_calc > 0 && !isExempt) {
+    var taxable_calc = total / (1 + gstPct_calc/100);
+    gst = total - taxable_calc;
+    cgst_stored = gst / 2;
+    sgst_stored = gst / 2;
+  }
   var dateStr = '';
   try {
     var d = s.bill_date || s.billDate || '';
@@ -1599,7 +1705,17 @@ function renderBillFromRecord(s) {
   billHtml += '<div style="border-top:2px solid #1b4332;padding-top:8px;font-size:13px;">'
     + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>Sub Total:</span><span>&#8377;' + sub.toFixed(2) + '</span></div>'
     + (disc>0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#dc2626;"><span>Discount:</span><span>-&#8377;' + disc.toFixed(2) + '</span></div>' : '')
-    + (gst>0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>GST (' + (s.gst_pct||18) + '%):</span><span>&#8377;' + gst.toFixed(2) + '</span></div>' : '')
+    + (function() {
+        if(gst <= 0) return '';
+        // Use stored taxable_value, else compute from total - gst
+        var taxable  = parseFloat(s.taxable_value) || 0;
+        if(taxable === 0) taxable = total - gst;
+        var halfPct  = (gstPct_calc/2).toFixed(1);
+        return '<div style="display:flex;justify-content:space-between;margin-bottom:3px;color:#475569;border-top:1px dashed #cbd5e1;padding-top:6px;"><span>Taxable Value:</span><span>&#8377;' + taxable.toFixed(2) + '</span></div>'
+             + '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>CGST (' + halfPct + '%):</span><span>&#8377;' + cgst_stored.toFixed(2) + '</span></div>'
+             + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>SGST (' + halfPct + '%):</span><span>&#8377;' + sgst_stored.toFixed(2) + '</span></div>'
+             + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-weight:700;color:#7c3aed;border-bottom:1px dashed #cbd5e1;padding-bottom:6px;"><span>Total GST (' + gstPct_calc + '%):</span><span>&#8377;' + gst.toFixed(2) + '</span></div>';
+      })()
     + '<div style="display:flex;justify-content:space-between;font-size:18px;font-weight:900;color:#1b4332;border-top:2px solid #1b4332;padding-top:6px;margin-top:6px;">'
       + '<span>GRAND TOTAL:</span><span>&#8377;' + total.toFixed(2) + '</span>'
     + '</div>'
@@ -1837,6 +1953,106 @@ function viewBillPaymentHistory(billNo) {
     .catch(function(e){ toast('Load failed: '+e.message,'e'); });
 }
 
+
+// ── Bill filter helpers ──
+function toggleBillFilters() {
+  var p = document.getElementById('bill-filters-panel');
+  var b = document.getElementById('filter-toggle-btn');
+  if(!p || !b) return;
+  if(p.style.display === 'none') {
+    p.style.display = 'block';
+    b.textContent = '⚙️ Hide Filters';
+  } else {
+    p.style.display = 'none';
+    b.textContent = '⚙️ Filters';
+  }
+}
+
+function onPeriodChange() {
+  var period = ((document.getElementById('bill-period')||{}).value)||'all';
+  var rows = {
+    'custom_date':  'custom-date-row',
+    'custom_month': 'custom-month-row',
+    'custom_year':  'custom-year-row',
+    'custom_range': 'custom-range-row'
+  };
+  for(var k in rows) {
+    var el = document.getElementById(rows[k]);
+    if(el) el.style.display = (k === period) ? (k === 'custom_range' ? 'grid' : 'block') : 'none';
+  }
+  // Auto-set today if custom_date selected
+  if(period === 'custom_date') {
+    var el = document.getElementById('bill-custom-date');
+    if(el && !el.value) el.value = new Date().toISOString().slice(0,10);
+  }
+  if(period === 'custom_month') {
+    var el2 = document.getElementById('bill-custom-month');
+    if(el2 && !el2.value) el2.value = new Date().toISOString().slice(0,7);
+  }
+  if(period === 'custom_year') {
+    var el3 = document.getElementById('bill-custom-year');
+    if(el3 && !el3.value) el3.value = new Date().getFullYear();
+  }
+  renderBillsPage();
+}
+
+
+function clearAllFilters() {
+  var ids = ['bill-filter','bill-period','bill-search','bill-custom-date','bill-custom-month','bill-custom-year','bill-from-date','bill-to-date'];
+  for(var i=0; i<ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if(el) {
+      if(el.tagName === 'SELECT') el.value = 'all';
+      else el.value = '';
+    }
+  }
+  try { onPeriodChange(); } catch(e){}
+  renderBillsPage();
+  toast('🔄 Filters cleared');
+}
+
+function matchesPeriod(billDate, period) {
+  if(!billDate || period === 'all') return true;
+  var bd = billDate.slice(0,10);
+  var now = new Date();
+  var today = now.toISOString().slice(0,10);
+  var yest = new Date(now.getTime()-86400000).toISOString().slice(0,10);
+
+  if(period === 'today')     return bd === today;
+  if(period === 'yesterday') return bd === yest;
+  if(period === 'this_week') {
+    var startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    return bd >= startOfWeek.toISOString().slice(0,10) && bd <= today;
+  }
+  if(period === 'this_month') return bd.slice(0,7) === today.slice(0,7);
+  if(period === 'last_month') {
+    var lm = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    return bd.slice(0,7) === lm.toISOString().slice(0,7);
+  }
+  if(period === 'this_year') return bd.slice(0,4) === today.slice(0,4);
+  if(period === 'custom_date') {
+    var d = ((document.getElementById('bill-custom-date')||{}).value)||'';
+    return d ? bd === d : true;
+  }
+  if(period === 'custom_month') {
+    var m = ((document.getElementById('bill-custom-month')||{}).value)||'';
+    return m ? bd.slice(0,7) === m : true;
+  }
+  if(period === 'custom_year') {
+    var y = ((document.getElementById('bill-custom-year')||{}).value)||'';
+    return y ? bd.slice(0,4) === String(y) : true;
+  }
+  if(period === 'custom_range') {
+    var from = ((document.getElementById('bill-from-date')||{}).value)||'';
+    var to   = ((document.getElementById('bill-to-date')||{}).value)||'';
+    if(from && bd < from) return false;
+    if(to   && bd > to) return false;
+    return true;
+  }
+  return true;
+}
+
 function renderBillsPage() {
   var cont = document.getElementById('bills-list');
   if(!cont) return;
@@ -1849,20 +2065,72 @@ function renderBillsPage() {
     var _bn = _b.bill_no || _b.billNo || ('row_'+_bi);
     if(!seen[_bn]) { seen[_bn] = 1; bills.push(_b); }
   }
-  // Apply filter + search
+  // Apply filter + period + search
   var filter = ((document.getElementById('bill-filter')||{}).value)||'all';
+  var period = ((document.getElementById('bill-period')||{}).value)||'all';
   var query = (((document.getElementById('bill-search')||{}).value)||'').toLowerCase();
   var today = new Date().toISOString().slice(0,10);
+
   bills = bills.filter(function(b){
-    if(filter === 'today' && (b.bill_date||'').slice(0,10) !== today) return false;
-    if(filter === 'due'   && parseFloat(b.balance||0) <= 0) return false;
-    if(filter === 'paid'  && parseFloat(b.balance||0) > 0) return false;
+    // Period filter
+    if(!matchesPeriod(b.bill_date||'', period)) return false;
+    // Status filter
+    if(filter === 'due'  && parseFloat(b.balance||0) <= 0) return false;
+    if(filter === 'paid' && parseFloat(b.balance||0) > 0) return false;
+    // Search
     if(query) {
-      var s = ((b.bill_no||'')+(b.farmer_name||b.name||'')+(b.mobile||'')).toLowerCase();
+      var s = ((b.bill_no||'')+(b.farmer_name||b.name||'')+(b.mobile||'')+(b.village||'')).toLowerCase();
       if(s.indexOf(query) === -1) return false;
     }
     return true;
   });
+
+  // Compute stats from filtered bills
+  var statsCount = bills.length;
+  var statsTotal = 0;
+  var statsDue   = 0;
+  var statsGst   = 0;
+  for(var _bi=0; _bi<bills.length; _bi++) {
+    statsTotal += parseFloat(bills[_bi].total||0);
+    statsDue   += parseFloat(bills[_bi].balance||0);
+    var _b_cgst = parseFloat(bills[_bi].cgst||0);
+    var _b_sgst = parseFloat(bills[_bi].sgst||0);
+    var _b_gst  = _b_cgst + _b_sgst;
+    // If no stored GST, compute from total (assume inclusive)
+    if(_b_gst === 0) {
+      var _b_total = parseFloat(bills[_bi].total||0);
+      var _b_gstP  = parseFloat(bills[_bi].gst_pct) || 18;
+      if(_b_total > 0 && _b_gstP > 0) _b_gst = _b_total - (_b_total / (1 + _b_gstP/100));
+    }
+    statsGst   += _b_gst;
+  }
+  var scEl = document.getElementById('stats-count');
+  var stEl = document.getElementById('stats-total');
+  var sdEl = document.getElementById('stats-due');
+  var sgEl = document.getElementById('stats-gst');
+  if(scEl) scEl.textContent = statsCount;
+  if(stEl) stEl.textContent = '₹'+statsTotal.toLocaleString('en-IN');
+  if(sdEl) sdEl.textContent = '₹'+statsDue.toLocaleString('en-IN');
+  if(sgEl) sgEl.textContent = '₹'+Math.round(statsGst).toLocaleString('en-IN');
+
+  // Update filter indicator
+  var filterInd = document.getElementById('filter-indicator');
+  if(filterInd) {
+    var parts = [];
+    if(period && period !== 'all') {
+      var periodLabels = {'today':'Today','yesterday':'Yesterday','this_week':'This Week','this_month':'This Month','last_month':'Last Month','this_year':'This Year','custom_date':'Date '+(((document.getElementById('bill-custom-date')||{}).value)||''),'custom_month':'Month '+(((document.getElementById('bill-custom-month')||{}).value)||''),'custom_year':'Year '+(((document.getElementById('bill-custom-year')||{}).value)||''),'custom_range':((((document.getElementById('bill-from-date')||{}).value)||'?')+' → '+(((document.getElementById('bill-to-date')||{}).value)||'?'))};
+      parts.push('📅 '+(periodLabels[period]||period));
+    }
+    if(filter && filter !== 'all') parts.push('💳 '+(filter==='due'?'Due Only':'Paid Only'));
+    if(query) parts.push('🔍 "'+query+'"');
+    if(parts.length) {
+      filterInd.innerHTML = 'Filtered: '+parts.join(' &middot; ')+' <span onclick="clearAllFilters()" style="color:#dc2626;cursor:pointer;margin-left:6px;text-decoration:underline;">Clear</span>';
+      filterInd.style.display = 'block';
+    } else {
+      filterInd.style.display = 'none';
+    }
+  }
+
   bills = bills.slice(0, 100);
   var todayCount = 0;
   for(var _i=0; _i<bills.length; _i++) {
@@ -1903,6 +2171,16 @@ function renderBillsPage() {
       + '</div>'
       + '<div style="text-align:right;flex-shrink:0;">'
       + '<div style="font-size:17px;font-weight:800;color:#2d6a4f;">&#8377;' + parseFloat(b.total||0).toLocaleString('en-IN') + '</div>'
+      + (function() {
+        var btotal = parseFloat(b.total||0);
+        var bgstP  = parseFloat(b.gst_pct) || 18;
+        var bgst   = parseFloat(b.cgst||0) + parseFloat(b.sgst||0);
+        // If no stored GST but total exists, compute (assume inclusive)
+        if(bgst === 0 && btotal > 0 && bgstP > 0) {
+          bgst = btotal - (btotal / (1 + bgstP/100));
+        }
+        return bgst > 0 ? '<div style="font-size:9px;color:#7c3aed;font-weight:700;">incl GST &#8377;'+bgst.toFixed(0)+'</div>' : '';
+      })()
       + '<div style="font-size:10px;color:#94a3b8;">' + itemCount + ' items</div>'
       + '</div>'
       + '</div>'
@@ -2685,6 +2963,9 @@ function _doGenerateBill(items, fetchedBillNo) {
     discount:    disc,
     gst_pct:     gstPct,
     gst_amt:     gst,
+    taxable_value: taxable,
+    cgst:        cgst,
+    sgst:        cgst,
     total:       total,
     paid:        paid_v,
     balance:     bal,
@@ -2950,6 +3231,17 @@ function pickProduct(idx) {
   }
   closeProductPicker();
   addProdRow(p);
+  // Auto-set GST% from product's gst_pct (from DB/Admin Panel)
+  var productGst = parseFloat(p.gst||p.gst_pct);
+  if(!isNaN(productGst)) {
+    var gstEl = document.getElementById('s-gst');
+    if(gstEl) {
+      // Map to form values: 0=0e, 5=5e, 12=12e, 18=18e, 28=28e
+      gstEl.value = String(productGst) + 'e';
+      if(typeof calcTotals === 'function') calcTotals();
+      console.log('[pickProduct] GST set to', productGst+'% (from product DB)');
+    }
+  }
   calcTotals();
   var newRow = document.getElementById('row-' + (rowCount - 1));
   if(newRow) {
@@ -4212,20 +4504,7 @@ function tryLocalSync() {
   showOfflineBanner();
 }
 
-function initProductBroadcast() {
-  try {
-    var bc = new BroadcastChannel('sf_products_sync');
-    bc.onmessage = function(e) {
-      if(e.data && e.data.type === 'products_update' && e.data.data) {
-        PRODUCTS = e.data.data;
-        saveAllProductsToDB();
-        updateStockHeaderAlert();
-        renderStockPage();
-        toast('✅ ' + PRODUCTS.length + ' products synced from Admin Panel!');
-      }
-    };
-  } catch(e) { /* BroadcastChannel not supported */ }
-}
+// (duplicate initProductBroadcast removed)
 
 function syncFromAdmin() {
   retryConnection();
