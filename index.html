@@ -1402,15 +1402,16 @@ function forceRefreshAll() {
 function mapSBToProduct(r) {
   if(!r || !r.name) return null;
   return {
-    n: r.name, cat: r.category||'Pesticides',
+    n: r.name, name: r.name, cat: r.category||'Pesticides', category: r.category||'Pesticides',
     rate: parseFloat(r.rate)||0, cost: parseFloat(r.cost)||0,
     minprice: parseFloat(r.min_price)||0, unit: r.unit||'',
-    hsn: r.hsn||'', gst: parseFloat(r.gst_pct)||18,
+    hsn: r.hsn||'', gst: parseFloat(r.gst_pct)||18, gst_pct: parseFloat(r.gst_pct)||18,
     co: r.company||'', batch: r.batch||'',
     mfg: r.mfg_date||'', exp: r.exp_date||'',
     stock: parseFloat(r.stock)||0, min: parseFloat(r.min_stock)||0,
+    subsidy_amount: parseFloat(r.subsidy_amount)||0,
     supplier: r.supplier||'', desc: r.description||'',
-    _sb_id: r.id
+    _sb_id: r.id, _id: r.id, id: r.id
   };
 }
 
@@ -1788,6 +1789,30 @@ function renderBillFromRecord(s) {
             var subAmt = parseFloat(s.subsidy_amount)||0;
             var farmerPaid = parseFloat(s.farmer_paid_amount);
             if(isNaN(farmerPaid)) farmerPaid = Math.max(0, total - subAmt);
+
+            // LIVE LOOKUP: if subAmt not set (frozen at 0 from old bill),
+            // compute from CURRENT product subsidy_amount × qty
+            if(subAmt <= 0 && (s.items||[]).length > 0) {
+              var liveSub = 0;
+              var prods2 = (typeof DB !== 'undefined' ? (DB.products||[]) : []);
+              for(var _li=0; _li<s.items.length; _li++) {
+                var _itName = ((s.items[_li].name||'')+'').trim().toLowerCase();
+                var _qty    = parseFloat(s.items[_li].qty)||0;
+                for(var _pi3=0; _pi3<prods2.length; _pi3++) {
+                  var _pName = ((prods2[_pi3].n||prods2[_pi3].name||'')+'').trim().toLowerCase();
+                  if(_pName === _itName) {
+                    liveSub += (parseFloat(prods2[_pi3].subsidy_amount)||0) * _qty;
+                    break;
+                  }
+                }
+              }
+              liveSub = Math.round(liveSub*100)/100;
+              if(liveSub > 0) {
+                subAmt = Math.min(liveSub, total);
+                farmerPaid = Math.max(0, Math.round((total-subAmt)*100)/100);
+              }
+            }
+
             if(subAmt <= 0 && farmerPaid <= 0) {
               // No per-product subsidy configured — show simple badge
               return '<div style="text-align:center;background:#fef9c3;color:#92400e;padding:6px 8px;border-radius:4px;margin-top:6px;font-weight:800;border:1.5px solid #fcd34d;">🏛️ Farmer Paid + Subsidy Claimed</div>'
@@ -2742,7 +2767,7 @@ function renderSubsidyPage() {
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;">'
       + '<div>'
         + '<label style="font-size:10px;font-weight:700;color:#b45309;display:block;margin-bottom:3px;">🏛️ Subsidy ₹/unit</label>'
-        + '<input type="number" id="sub-amt-'+i+'" value="'+sub.toFixed(2)+'" min="0" step="0.01" oninput="calcFarmerPay('+i+')" '
+        + '<input type="number" id="sub-amt-'+i+'" value="'+sub.toFixed(2)+'" min="0" step="0.01" oninput="calcFarmerPay('+i+','+rate+')" '
           +'style="width:100%;padding:8px;border:1.5px solid #fcd34d;border-radius:8px;font-size:13px;font-weight:700;font-family:monospace;color:#92400e;background:#fff;outline:none;text-align:right;"/>'
       + '</div>'
       + '<div>'
@@ -2756,32 +2781,37 @@ function renderSubsidyPage() {
   cont.innerHTML = html;
 }
 
-function calcFarmerPay(idx) {
-  var p = (DB.products||[])[idx];
-  if(!p) return;
-  var rate = parseFloat(p.rate||0);
+function calcFarmerPay(idx, rate) {
   var amtEl = document.getElementById('sub-amt-'+idx);
   var sub  = parseFloat(amtEl?amtEl.value:0)||0;
-  var farmerPay = Math.max(0, rate - sub);
+  var farmerPay = Math.max(0, parseFloat(rate||0) - sub);
   var el = document.getElementById('farmer-pay-'+idx);
   if(el) el.textContent = '₹'+farmerPay.toFixed(2);
 }
 
 function saveSubsidyRate(idx, pid, pname) {
-  var p = (DB.products||[])[idx];
-  if(!p) return;
   var amtEl = document.getElementById('sub-amt-'+idx);
   var sub = parseFloat(amtEl?amtEl.value:0)||0;
 
+  // Find product by NAME in DB.products (robust even if subsidy-search filter is active)
+  var realIdx = -1;
+  for(var k=0; k<(DB.products||[]).length; k++) {
+    if((DB.products[k].n||DB.products[k].name||'') === pname) { realIdx = k; break; }
+  }
+  if(realIdx === -1) { toast('Product not found','e'); return; }
+
   // Update local
-  DB.products[idx].subsidy_amount = sub;
-  if(typeof PRODUCTS!=='undefined' && PRODUCTS[idx]) PRODUCTS[idx].subsidy_amount = sub;
+  DB.products[realIdx].subsidy_amount = sub;
+  if(typeof PRODUCTS!=='undefined' && PRODUCTS[realIdx]) PRODUCTS[realIdx].subsidy_amount = sub;
 
   toast('⏳ Saving subsidy rate...');
-  var matchQ = pid && pid.indexOf('idx')!==0 ? 'id=eq.'+pid : 'name=eq.'+encodeURIComponent(pname);
+  var realPid = DB.products[realIdx]._sb_id || DB.products[realIdx]._id || DB.products[realIdx].id;
+  var matchQ  = realPid ? 'id=eq.'+realPid : 'name=eq.'+encodeURIComponent(pname);
+  console.log('[Subsidy Rate] PATCH', matchQ, '→ subsidy_amount =', sub);
   sbPatch('products', matchQ, { subsidy_amount: sub })
     .then(function(){
       toast('✅ '+pname+': Subsidy ₹'+sub.toFixed(2)+'/unit saved');
+      console.log('[Subsidy Rate] ✅ Saved');
       // Broadcast to other apps
       try {
         var bc = new BroadcastChannel('sf_products_sync');
@@ -2790,7 +2820,7 @@ function saveSubsidyRate(idx, pid, pname) {
       } catch(e){}
     })
     .catch(function(e){
-      toast('Save failed: '+e.message+' — run subsidy SQL fix','e');
+      toast('Save failed: '+e.message,'e');
       console.error('[Subsidy Rate] PATCH failed:', e.message);
     });
 }
@@ -2957,7 +2987,7 @@ function renderBillsPage() {
       + (balDue > 0 ? '<button onclick="event.stopPropagation();openDuePayModal(\''+safeBn+'\')" style="flex:1;min-width:80px;padding:6px 8px;background:linear-gradient(135deg,#b45309,#e9a319);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;">💳 Pay Due</button>' : '')
       + '<button onclick="event.stopPropagation();viewBillPaymentHistory(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#7c3aed;border:1px solid #7c3aed;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">📜 Hist</button>'
       + '<button onclick="event.stopPropagation();openRateEditModal(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#0369a1;border:1px solid #7dd3fc;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Rate</button>'
-      + (parseFloat(b.balance||0)<=0 ? '<button onclick="event.stopPropagation();toggleBillSubsidy(this.dataset.bn)" data-bn="'+safeBn+'" style="flex:1;min-width:70px;padding:6px 8px;background:'+(b.subsidy_claimed?'#fef9c3':'#fff')+';color:#92400e;border:1px solid #fcd34d;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">'+(b.subsidy_claimed?'🏛️ Subsidy':'☐ Subsidy')+'</button>' : '')
+      + '<button onclick="event.stopPropagation();toggleBillSubsidy(this.dataset.bn)" data-bn="'+safeBn+'" style="flex:1;min-width:70px;padding:6px 8px;background:'+(b.subsidy_claimed?'#fef9c3':'#fff')+';color:#92400e;border:1px solid #fcd34d;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">'+(b.subsidy_claimed?'🏛️ Subsidy':'☐ Subsidy')+'</button>'
       + '</div>'
     + '</div>';
   }
