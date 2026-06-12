@@ -601,13 +601,16 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
       <div class="pay-btn" onclick="setPay(this,'అప్పు')"><span class="pbi">📒</span>అప్పు</div>
     </div>
     <!-- SUBSIDY TICK -->
-    <div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;cursor:pointer;" onclick="toggleSubsidy()">
-      <div id="subsidy-tick" style="width:22px;height:22px;border-radius:6px;border:2px solid #d97706;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;">
+    <div style="margin-top:10px;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleSubsidy()">
+        <div id="subsidy-tick" style="width:22px;height:22px;border-radius:6px;border:2px solid #d97706;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .15s;">
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#92400e;">🏛️ Subsidy Claimed</div>
+          <div style="font-size:10px;color:#b45309;">Farmer paid + Govt subsidy applies</div>
+        </div>
       </div>
-      <div>
-        <div style="font-size:12px;font-weight:800;color:#92400e;">🏛️ Subsidy Claimed</div>
-        <div style="font-size:10px;color:#b45309;">Farmer paid + Govt subsidy applies</div>
-      </div>
+      <div id="subsidy-preview" style="display:none;margin-top:8px;padding-top:8px;border-top:1px dashed #ca8a04;"></div>
     </div>
     <div class="r3">
       <div class="fg">
@@ -803,6 +806,12 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
           </select>
         </div>
       </div>
+      <!-- Product Filter -->
+      <div style="margin-top:6px;">
+        <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">🌿 Product</label>
+        <input id="bill-filter-product" placeholder="Product name..." oninput="renderBillsPage()"
+          style="width:100%;padding:6px 8px;border:1.5px solid #86efac;border-radius:6px;font-size:11px;font-family:inherit;background:#fff;outline:none;"/>
+      </div>
       <!-- Custom date inputs (shown based on period) -->
       <div id="custom-date-row" style="display:none;margin-top:6px;">
         <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">Date</label>
@@ -849,6 +858,21 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
     </div>
     <!-- Active filter indicator -->
     <div id="filter-indicator" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:11px;color:#166534;font-weight:700;"></div>
+
+    <!-- Bulk Action Bar (hidden until bills selected) -->
+    <div id="bulk-bar" style="display:none;background:#1b4332;color:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:none;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="font-size:12px;font-weight:700;"><span id="bulk-count">0</span> bills selected</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="bulkPrintSelected()" style="padding:6px 10px;background:#fff;color:#1b4332;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🖨️ Print All</button>
+        <button onclick="bulkDownloadCSV()" style="padding:6px 10px;background:#25d366;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">📥 CSV</button>
+        <button onclick="clearBulkSelect()" style="padding:6px 10px;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:7px;font-size:11px;cursor:pointer;">✕ Clear</button>
+      </div>
+    </div>
+    <!-- Select All -->
+    <div id="bulk-select-row" style="display:none;font-size:11px;color:#1b4332;font-weight:700;margin-bottom:6px;cursor:pointer;" onclick="selectAllBills()">
+      ☐ Select All Visible Bills
+    </div>
+
     <div id="bills-list"></div>
   </div>
 </div>
@@ -871,11 +895,27 @@ label{font-size:11px;font-weight:700;color:var(--sub);display:block;margin-botto
 
 <!-- BOTTOM TAB BAR -->
 
+
+<!-- ═══════ PAGE: SUBSIDY RATES ═══════ -->
+<div class="page" id="pg-subsidy">
+  <div style="font-size:16px;font-weight:800;margin-bottom:6px;">🏛️ Subsidy Rate Manager</div>
+  <div style="font-size:11px;color:#64748b;margin-bottom:14px;">
+    ప్రతి product కి subsidy amount set చేయండి. Bill generate చేసేటప్పుడు "Subsidy Claimed" tick చేస్తే,
+    ఈ rates ఆధారంగా Farmer Paid + Subsidy Claimed automatically calculate అవుతుంది.
+  </div>
+
+  <input id="subsidy-search" placeholder="🔍 Search product..." oninput="renderSubsidyPage()"
+    style="width:100%;padding:10px 12px;border:1.5px solid #d4e8d4;border-radius:8px;font-size:12px;font-family:inherit;margin-bottom:10px;outline:none;"/>
+
+  <div id="subsidy-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+</div>
+
 <nav class="tab-bar">
   <div class="tab-item active" id="tab-sale" onclick="goTab('sale',this)"><div class="ti">🧾</div><div>Sale</div></div>
   <div class="tab-item" id="tab-bill" onclick="goTab('bill',this)"><div class="ti" style="position:relative">📄<span class="tab-badge" id="badge-bill">0</span></div><div>Bills</div></div>
   <div class="tab-item" id="tab-today" onclick="goTab('today',this)"><div class="ti" style="position:relative">📊<span class="tab-badge" id="badge-today">0</span></div><div>Today</div></div>
   <div class="tab-item" id="tab-stock" onclick="goTab('stock',this)"><div class="ti" style="position:relative">📦<span class="tab-badge" id="badge-stock"></span></div><div>Stock</div></div>
+  <div class="tab-item" id="tab-subsidy" onclick="goTab('subsidy',this)"><div class="ti">🏛️</div><div>Subsidy</div></div>
 </nav>
 
 </div>
@@ -1242,7 +1282,11 @@ function sbPatch(table, match, data) {
     xhr.onreadystatechange = function() {
       if(xhr.readyState !== 4) return;
       if(xhr.status >= 200 && xhr.status < 300) resolve(true);
-      else reject(new Error('HTTP ' + xhr.status));
+      else {
+        var detail = '';
+        try { var j = JSON.parse(xhr.responseText); detail = j.message || j.hint || j.details || xhr.responseText; } catch(e){ detail = xhr.responseText; }
+        reject(new Error('HTTP ' + xhr.status + (detail ? ': ' + String(detail).slice(0,150) : '')));
+      }
     };
     xhr.onerror   = function() { reject(new Error('Network error')); };
     xhr.ontimeout = function() { reject(new Error('Timeout')); };
@@ -1414,7 +1458,9 @@ function mapSaleToSB(s) {
     exec_voucher: s.execVoucher||s.exec_voucher||false,
     form_type: s.formType||s.form_type||'Tax Invoice',
     internal_notes: s.intNote||s.internal_notes||'',
-    subsidy_claimed: s.subsidy_claimed || false
+    subsidy_claimed: s.subsidy_claimed || false,
+    subsidy_amount: parseFloat(s.subsidy_amount)||0,
+    farmer_paid_amount: parseFloat(s.farmer_paid_amount)|| parseFloat(s.total)||0
   };
 }
 function mapFarmerToSB(f) {
@@ -1737,10 +1783,31 @@ function renderBillFromRecord(s) {
       + '<span>GRAND TOTAL:</span><span>&#8377;' + total.toFixed(2) + '</span>'
     + '</div>'
     + '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;"><span>Paid (' + (s.pay_mode||'Cash') + '):</span><span>&#8377;' + paid.toFixed(2) + '</span></div>'
-    + (bal>0 ? '<div style="display:flex;justify-content:space-between;color:#dc2626;font-weight:700;"><span>Balance Due:</span><span>&#8377;' + bal.toFixed(2) + '</span></div>'
-      : (s.subsidy_claimed
-          ? '<div style="text-align:center;background:#fef9c3;color:#92400e;padding:6px 8px;border-radius:4px;margin-top:6px;font-weight:800;border:1.5px solid #fcd34d;">🏛️ Farmer Paid + Subsidy Claimed</div>'
-          : '<div style="text-align:center;background:#dcfce7;color:#166534;padding:4px;border-radius:4px;margin-top:6px;font-weight:700;">✅ FULLY PAID</div>'))
+    + (s.subsidy_claimed
+        ? (function(){
+            var subAmt = parseFloat(s.subsidy_amount)||0;
+            var farmerPaid = parseFloat(s.farmer_paid_amount);
+            if(isNaN(farmerPaid)) farmerPaid = Math.max(0, total - subAmt);
+            if(subAmt <= 0 && farmerPaid <= 0) {
+              // No per-product subsidy configured — show simple badge
+              return '<div style="text-align:center;background:#fef9c3;color:#92400e;padding:6px 8px;border-radius:4px;margin-top:6px;font-weight:800;border:1.5px solid #fcd34d;">🏛️ Farmer Paid + Subsidy Claimed</div>'
+                + '<div style="font-size:10px;color:#b45309;text-align:center;margin-top:3px;">⚠️ No subsidy rate set — visit 🏛️ Subsidy tab to configure</div>';
+            }
+            var subStatus = s.subsidy_status || 'pending';
+            var statusBadge = subStatus === 'received'
+              ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;">✅ RECEIVED</span>'
+              : '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;">⏳ PENDING</span>';
+            // Any real outstanding beyond farmer-paid + subsidy (rare, e.g. partial farmer payment)
+            var extraDue = Math.max(0, Math.round((total - farmerPaid - subAmt)*100)/100);
+            return '<div style="background:#fef9c3;border:1.5px solid #fcd34d;border-radius:6px;padding:8px;margin-top:6px;">'
+              + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>👨‍🌾 Farmer Paid:</span><span style="font-weight:800;color:#166534;">&#8377;'+farmerPaid.toFixed(2)+'</span></div>'
+              + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:3px;"><span>🏛️ Govt Subsidy:</span><span style="display:flex;align-items:center;gap:6px;"><span style="font-weight:800;color:#92400e;">&#8377;'+subAmt.toFixed(2)+'</span>'+statusBadge+'</span></div>'
+              + (extraDue>0 ? '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:#dc2626;font-weight:700;"><span>⚠️ Additional Due:</span><span>&#8377;'+extraDue.toFixed(2)+'</span></div>' : '')
+              + '<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:900;border-top:1px dashed #ca8a04;padding-top:4px;margin-top:4px;color:#92400e;"><span>= Total:</span><span>&#8377;'+total.toFixed(2)+'</span></div>'
+              + '</div>';
+          })()
+        : (bal>0 ? '<div style="display:flex;justify-content:space-between;color:#dc2626;font-weight:700;"><span>Balance Due:</span><span>&#8377;' + bal.toFixed(2) + '</span></div>'
+                 : '<div style="text-align:center;background:#dcfce7;color:#166534;padding:4px;border-radius:4px;margin-top:6px;font-weight:700;">✅ FULLY PAID</div>'))
     + '</div>'
     + '<div style="margin-top:14px;padding-top:8px;border-top:1px dashed #94a3b8;font-size:10px;color:#64748b;">'
       + '<b>Bank:</b> Indian Overseas Bank | A/C: 318702000000555 | IFSC: IOBA0003187 | UPI: PPQR01.WZHBUQ@iob<br>'
@@ -1806,6 +1873,13 @@ function waSavedBill(billNo) {
   msg += 'చెల్లింపు: ' + (sale.pay_mode||'Cash') + '\n';
   if(parseFloat(sale.balance||0) > 0) {
     msg += '⚠️ *మిగిలిన బ్యాలెన్స్: ₹' + parseFloat(sale.balance).toLocaleString('en-IN') + '*\n';
+  } else if(sale.subsidy_claimed) {
+    var _waSub = parseFloat(sale.subsidy_amount)||0;
+    var _waFarmer = parseFloat(sale.farmer_paid_amount);
+    if(isNaN(_waFarmer)) _waFarmer = Math.max(0, parseFloat(sale.total||0) - _waSub);
+    var _waStatus = (sale.subsidy_status==='received') ? '✅ అందింది' : '⏳ పెండింగ్';
+    msg += '\n👨‍🌾 రైతు చెల్లించింది: ₹' + _waFarmer.toLocaleString('en-IN') + '\n';
+    msg += '🏛️ ప్రభుత్వ సబ్సిడీ: ₹' + _waSub.toLocaleString('en-IN') + ' (' + _waStatus + ')\n';
   } else {
     msg += '✅ *పూర్తిగా చెల్లించారు*\n';
   }
@@ -1835,7 +1909,48 @@ function toggleSubsidy() {
     box.style.background  = SUBSIDY_CLAIMED ? '#fef9c3' : '#fffbeb';
     box.style.borderColor = SUBSIDY_CLAIMED ? '#ca8a04' : '#fcd34d';
   }
+  showSubsidyPreview();
   calcTotals();
+}
+
+// Show live preview of Farmer Paid + Subsidy split for items in cart
+function showSubsidyPreview() {
+  var prevEl = document.getElementById('subsidy-preview');
+  if(!prevEl) return;
+  if(!SUBSIDY_CLAIMED) { prevEl.style.display='none'; prevEl.innerHTML=''; return; }
+
+  var totalSub = 0, totalAmt = 0, anyConfigured = false;
+  for(var i=0; i<rowCount; i++) {
+    var nEl = document.getElementById('pn-'+i);
+    var qEl = document.getElementById('pq-'+i);
+    var aEl = document.getElementById('pa-'+i);
+    if(!nEl || !nEl.value) continue;
+    var name = nEl.value.trim().toLowerCase();
+    var qty  = parseFloat(qEl?qEl.value:0)||0;
+    var amt  = parseFloat(aEl?aEl.value:0)||0;
+    totalAmt += amt;
+    for(var p=0; p<(DB.products||[]).length; p++) {
+      var pn = ((DB.products[p].n||DB.products[p].name||'')+'').trim().toLowerCase();
+      if(pn === name) {
+        var subPerUnit = parseFloat(DB.products[p].subsidy_amount)||0;
+        if(subPerUnit > 0) anyConfigured = true;
+        totalSub += subPerUnit * qty;
+        break;
+      }
+    }
+  }
+  totalSub = Math.round(totalSub*100)/100;
+  var farmerPay = Math.max(0, totalAmt - totalSub);
+
+  if(!anyConfigured) {
+    prevEl.style.display = 'block';
+    prevEl.innerHTML = '<div style="font-size:10px;color:#b45309;">⚠️ No subsidy rate configured for these products — set in 🏛️ Subsidy tab</div>';
+    return;
+  }
+  prevEl.style.display = 'block';
+  prevEl.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:11px;"><span>👨‍🌾 Farmer Pays:</span><span style="font-weight:800;color:#166534;">₹'+farmerPay.toFixed(2)+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:11px;"><span>🏛️ Subsidy:</span><span style="font-weight:800;color:#92400e;">₹'+totalSub.toFixed(2)+'</span></div>';
 }
 
 // Toggle subsidy on a saved bill and refresh display
@@ -1910,6 +2025,437 @@ function setSubsidyStatus(isSubsidy) {
       // localStorage already has it — no user-visible error
     });
 }
+
+// ── BULK SELECT & DOWNLOAD ──
+var SELECTED_BILLS = {};
+
+function toggleBillCheck(billNo) {
+  if(SELECTED_BILLS[billNo]) {
+    delete SELECTED_BILLS[billNo];
+  } else {
+    SELECTED_BILLS[billNo] = true;
+  }
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  var count = Object.keys(SELECTED_BILLS).length;
+  var bar   = document.getElementById('bulk-bar');
+  var row   = document.getElementById('bulk-select-row');
+  var cnt   = document.getElementById('bulk-count');
+  if(bar) bar.style.display = count > 0 ? 'flex' : 'none';
+  if(row) row.style.display = 'block';
+  if(cnt) cnt.textContent   = count;
+  // Show/hide checkboxes
+  Object.keys(SELECTED_BILLS).forEach(function(bn) {
+    var chkWrap = document.getElementById('chk-wrap-'+bn);
+    if(chkWrap) { chkWrap.style.display = 'block'; }
+    var chk = document.getElementById('chk-'+bn);
+    if(chk) chk.checked = true;
+  });
+}
+
+function selectAllBills() {
+  var visible = document.querySelectorAll('.bill-item');
+  visible.forEach(function(el) {
+    var id = el.id.replace('bill-card-','');
+    if(id) SELECTED_BILLS[id] = true;
+    var chkWrap = document.getElementById('chk-wrap-'+id);
+    if(chkWrap) chkWrap.style.display = 'block';
+    var chk = document.getElementById('chk-'+id);
+    if(chk) chk.checked = true;
+  });
+  updateBulkBar();
+}
+
+function clearBulkSelect() {
+  SELECTED_BILLS = {};
+  document.querySelectorAll('.bill-item input[type=checkbox]').forEach(function(c){ c.checked=false; });
+  document.querySelectorAll('[id^="chk-wrap-"]').forEach(function(w){ w.style.display='none'; });
+  var bar = document.getElementById('bulk-bar');
+  if(bar) bar.style.display = 'none';
+}
+
+function bulkPrintSelected() {
+  var keys = Object.keys(SELECTED_BILLS);
+  if(!keys.length) { toast('No bills selected','e'); return; }
+  var combined = '';
+  keys.forEach(function(bn) {
+    for(var i=0; i<DB.sales.length; i++) {
+      if((DB.sales[i].bill_no||DB.sales[i].billNo) === bn) {
+        combined += '<div style="page-break-after:always;">'+renderBillFromRecord(DB.sales[i])+'</div>';
+        break;
+      }
+    }
+  });
+  var win = window.open('','_blank','width=700,height=900');
+  if(!win) { toast('Popup blocked — allow popups','e'); return; }
+  win.document.write('<html><head><title>Bills Print ('+keys.length+')</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:0;padding:16px;} @media print{.no-print{display:none;}@page{margin:8mm;}} </style></head><body>'
+    +'<div class="no-print" style="text-align:center;margin-bottom:12px;"><button onclick="window.print()" style="padding:10px 20px;background:#1b4332;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;">🖨️ Print All '+keys.length+' Bills</button></div>'
+    + combined +'<script>window.onafterprint=function(){window.close();}<'+'/script></body></html>');
+  win.document.close();
+  toast('🖨️ Opening '+keys.length+' bills for print...');
+}
+
+function bulkDownloadCSV() {
+  var keys = Object.keys(SELECTED_BILLS);
+  if(!keys.length) { toast('No bills selected','e'); return; }
+  var rows = ['Bill No,Date,Customer,Mobile,Village,Items,Total,GST,Paid,Balance,Pay Mode,Status'];
+  keys.forEach(function(bn) {
+    for(var i=0; i<DB.sales.length; i++) {
+      var b = DB.sales[i];
+      if((b.bill_no||b.billNo) !== bn) continue;
+      var itemNames = (b.items||[]).map(function(it){ return (it.name||'')+'×'+(it.qty||1); }).join(' | ');
+      rows.push([
+        bn,
+        (b.bill_date||'').slice(0,10),
+        '"'+(b.farmer_name||b.name||'').replace(/"/g,"'")+'"',
+        b.mobile||'',
+        b.village||'',
+        '"'+itemNames.replace(/"/g,"'")+'"',
+        parseFloat(b.total||0).toFixed(2),
+        (parseFloat(b.cgst||0)+parseFloat(b.sgst||0)).toFixed(2),
+        parseFloat(b.paid||0).toFixed(2),
+        parseFloat(b.balance||0).toFixed(2),
+        b.pay_mode||'',
+        b.status||''
+      ].join(','));
+      break;
+    }
+  });
+  var csv = rows.join('\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href   = url;
+  a.download = 'seshadri_bills_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📥 Downloaded '+keys.length+' bills as CSV ✅');
+}
+
+// ── RATE EDIT ──
+var RATE_EDIT_BILLNO = null;
+
+function openRateEditModal(billNo) {
+  if(!billNo) return;
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === billNo) { sale=DB.sales[i]; break; }
+  }
+  if(!sale) { toast('Bill not found','e'); return; }
+  RATE_EDIT_BILLNO = billNo;
+
+  var items = sale.items||[];
+  var html = '';
+  for(var j=0; j<items.length; j++) {
+    var it  = items[j];
+    var amt = parseFloat(it.amount||it.amt||0);
+    html += '<div class="re-row" id="re-row-'+j+'" style="display:grid;grid-template-columns:2fr 0.7fr 0.9fr 0.9fr;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">'
+      + '<div style="font-size:12px;font-weight:700;color:#1b4332;line-height:1.3;">'+it.name
+        +'<br/><span style="font-size:10px;color:#64748b;font-weight:400;">Qty: '+it.qty+' '+( it.unit||'')+'</span></div>'
+      + '<div style="font-size:11px;color:#64748b;text-align:center;">'+it.qty+'</div>'
+      + '<div><input type="number" id="re-rate-'+j+'" value="'+parseFloat(it.rate||0).toFixed(2)+'" min="0" step="0.01" oninput="calcRateEditTotals()" style="width:100%;padding:6px 4px;border:1.5px solid #7dd3fc;border-radius:7px;font-size:12px;font-family:monospace;font-weight:700;text-align:right;outline:none;"/></div>'
+      + '<div id="re-amt-'+j+'" style="font-size:12px;font-weight:800;font-family:monospace;color:#2d6a4f;text-align:right;">₹'+amt.toFixed(2)+'</div>'
+      + '</div>';
+  }
+
+  var rem_s = document.getElementById('re-modal');
+  if(!rem_s) return;
+  document.getElementById('re-billno').textContent  = billNo;
+  document.getElementById('re-customer').textContent = sale.farmer_name||sale.name||'Customer';
+  document.getElementById('re-items-list').innerHTML = html;
+  calcRateEditTotals();
+  // Prefill paid amount
+  var paidEl = document.getElementById('re-paid');
+  if(paidEl) paidEl.value = parseFloat(sale.paid||0).toFixed(2);
+
+  // Subsidy section
+  var subSection = document.getElementById('re-subsidy-section');
+  if(subSection) {
+    if(sale.subsidy_claimed) {
+      subSection.style.display = 'block';
+      var fEl = document.getElementById('re-farmer-paid');
+      var sEl = document.getElementById('re-subsidy-amt');
+      var stEl = document.getElementById('re-subsidy-status');
+      var total = parseFloat(sale.total||0);
+      var farmerPaid = parseFloat(sale.farmer_paid_amount);
+      var subAmt = parseFloat(sale.subsidy_amount)||0;
+      if(isNaN(farmerPaid)) farmerPaid = Math.max(0, total - subAmt);
+      if(fEl)  fEl.value  = farmerPaid.toFixed(2);
+      if(sEl)  sEl.value  = subAmt.toFixed(2);
+      if(stEl) stEl.value = sale.subsidy_status || 'pending';
+      updateSubsidySum();
+    } else {
+      subSection.style.display = 'none';
+    }
+  }
+
+  rem_s.dataset.billno = billNo;
+  rem_s.style.display  = 'flex';
+  updateReBalance();
+  if(typeof updateSubsidySum==='function') {
+    var ss = document.getElementById('re-subsidy-section');
+    if(ss && ss.style.display!=='none') {
+      // re-sync subsidy amount based on new total, keeping farmer paid same
+      syncSubsidyFromFarmer();
+    }
+  }
+}
+
+// Keep Farmer Paid + Govt Subsidy = Total (auto-balance the other field)
+function getReTotal() {
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === RATE_EDIT_BILLNO) { sale=DB.sales[i]; break; }
+  }
+  if(!sale) return 0;
+  var items = sale.items||[];
+  var sub = 0;
+  for(var j=0; j<items.length; j++) {
+    var rateEl = document.getElementById('re-rate-'+j);
+    var rate = parseFloat(rateEl?rateEl.value:items[j].rate)||0;
+    var qty  = parseFloat(items[j].qty)||1;
+    sub += rate*qty;
+  }
+  var disc = parseFloat(sale.discount||0);
+  return Math.round((sub-disc)*100)/100;
+}
+
+function syncSubsidyFromFarmer() {
+  var total = getReTotal();
+  var fEl = document.getElementById('re-farmer-paid');
+  var sEl = document.getElementById('re-subsidy-amt');
+  var farmerPaid = parseFloat(fEl?fEl.value:0)||0;
+  var subAmt = Math.max(0, Math.round((total-farmerPaid)*100)/100);
+  if(sEl) sEl.value = subAmt.toFixed(2);
+  updateSubsidySum();
+}
+
+function syncSubsidyFromGovt() {
+  var total = getReTotal();
+  var fEl = document.getElementById('re-farmer-paid');
+  var sEl = document.getElementById('re-subsidy-amt');
+  var subAmt = parseFloat(sEl?sEl.value:0)||0;
+  var farmerPaid = Math.max(0, Math.round((total-subAmt)*100)/100);
+  if(fEl) fEl.value = farmerPaid.toFixed(2);
+  updateSubsidySum();
+}
+
+function updateSubsidySum() {
+  var total = getReTotal();
+  var fEl = document.getElementById('re-farmer-paid');
+  var sEl = document.getElementById('re-subsidy-amt');
+  var farmerPaid = parseFloat(fEl?fEl.value:0)||0;
+  var subAmt = parseFloat(sEl?sEl.value:0)||0;
+  var sum = Math.round((farmerPaid+subAmt)*100)/100;
+  var diff = Math.round((sum-total)*100)/100;
+  var el = document.getElementById('re-subsidy-sum');
+  if(!el) return;
+  if(Math.abs(diff) < 0.01) {
+    el.innerHTML = '✅ Farmer Paid + Subsidy = ₹'+sum.toFixed(2)+' (matches Total)';
+    el.style.color = '#166534';
+  } else {
+    el.innerHTML = '⚠️ Sum ₹'+sum.toFixed(2)+' vs Total ₹'+total.toFixed(2)+' — diff ₹'+diff.toFixed(2);
+    el.style.color = '#dc2626';
+  }
+}
+
+// Recompute total (from current rate inputs) and show balance vs paid
+function updateReBalance() {
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === RATE_EDIT_BILLNO) { sale=DB.sales[i]; break; }
+  }
+  if(!sale) return;
+  var items = sale.items||[];
+  var sub = 0;
+  for(var j=0; j<items.length; j++) {
+    var rateEl = document.getElementById('re-rate-'+j);
+    var rate = parseFloat(rateEl?rateEl.value:items[j].rate)||0;
+    var qty  = parseFloat(items[j].qty)||1;
+    sub += rate*qty;
+  }
+  var disc  = parseFloat(sale.discount||0);
+  var after = Math.round((sub-disc)*100)/100;
+
+  var paidEl = document.getElementById('re-paid');
+  var paid = parseFloat(paidEl?paidEl.value:0)||0;
+  var bal  = Math.max(0, Math.round((after-paid)*100)/100);
+
+  var prevEl = document.getElementById('re-balance-preview');
+  if(prevEl) {
+    if(bal > 0) {
+      prevEl.innerHTML = '<span style="color:#dc2626;">⚠️ Balance Due: ₹'+bal.toFixed(2)+'</span>';
+    } else if(paid > after) {
+      prevEl.innerHTML = '<span style="color:#7c3aed;">ℹ️ Overpaid by ₹'+(paid-after).toFixed(2)+' (advance/refund)</span>';
+    } else {
+      prevEl.innerHTML = '<span style="color:#16a34a;">✅ Fully Paid</span>';
+    }
+  }
+}
+
+// Quick paid % buttons
+function setRePaidPct(pct) {
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === RATE_EDIT_BILLNO) { sale=DB.sales[i]; break; }
+  }
+  if(!sale) return;
+  var items = sale.items||[];
+  var sub = 0;
+  for(var j=0; j<items.length; j++) {
+    var rateEl = document.getElementById('re-rate-'+j);
+    var rate = parseFloat(rateEl?rateEl.value:items[j].rate)||0;
+    var qty  = parseFloat(items[j].qty)||1;
+    sub += rate*qty;
+  }
+  var disc  = parseFloat(sale.discount||0);
+  var after = Math.round((sub-disc)*100)/100;
+  var paidEl = document.getElementById('re-paid');
+  if(paidEl) paidEl.value = (after*pct/100).toFixed(2);
+  updateReBalance();
+  if(typeof updateSubsidySum==='function') {
+    var ss = document.getElementById('re-subsidy-section');
+    if(ss && ss.style.display!=='none') {
+      // re-sync subsidy amount based on new total, keeping farmer paid same
+      syncSubsidyFromFarmer();
+    }
+  }
+}
+
+function closeRateEditModal() {
+  var m = document.getElementById('re-modal');
+  if(m) m.style.display = 'none';
+  RATE_EDIT_BILLNO = null;
+}
+
+function calcRateEditTotals() {
+  var sale = null;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === RATE_EDIT_BILLNO) { sale=DB.sales[i]; break; }
+  }
+  if(!sale) return;
+  var items = sale.items||[];
+  var sub   = 0;
+  for(var j=0; j<items.length; j++) {
+    var rateEl = document.getElementById('re-rate-'+j);
+    var amtEl  = document.getElementById('re-amt-'+j);
+    var rate   = parseFloat(rateEl?rateEl.value:items[j].rate)||0;
+    var qty    = parseFloat(items[j].qty)||1;
+    var amt    = Math.round(rate*qty*100)/100;
+    sub += amt;
+    if(amtEl) amtEl.textContent = '₹'+amt.toFixed(2);
+  }
+  var disc  = parseFloat(sale.discount||0);
+  var gstP  = parseFloat(sale.gst_pct)||18;
+  var after = sub - disc;
+  var tax   = Math.round(after/(1+gstP/100)*100)/100;
+  var gst   = Math.round((after-tax)*100)/100;
+  var cgst  = gst/2;
+  var newEl = document.getElementById('re-new-total');
+  if(newEl) newEl.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;"><span>Sub Total:</span><span>₹'+sub.toFixed(2)+'</span></div>'
+    +(disc>0?'<div style="display:flex;justify-content:space-between;font-size:12px;color:#dc2626;"><span>Discount:</span><span>-₹'+disc.toFixed(2)+'</span></div>':'')
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;"><span>Taxable:</span><span>₹'+tax.toFixed(2)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;"><span>CGST ('+gstP/2+'%):</span><span>₹'+cgst.toFixed(2)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;"><span>SGST ('+gstP/2+'%):</span><span>₹'+cgst.toFixed(2)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;color:#1b4332;border-top:2px solid #1b4332;padding-top:6px;margin-top:6px;"><span>GRAND TOTAL:</span><span>₹'+after.toFixed(2)+'</span></div>';
+  updateReBalance();
+  if(typeof updateSubsidySum==='function') {
+    var ss = document.getElementById('re-subsidy-section');
+    if(ss && ss.style.display!=='none') {
+      // re-sync subsidy amount based on new total, keeping farmer paid same
+      syncSubsidyFromFarmer();
+    }
+  }
+}
+
+function saveRateEdit() {
+  var modal = document.getElementById('re-modal');
+  if(!modal) return;
+  var billNo = modal.dataset.billno;
+  var saleIdx = -1;
+  for(var i=0; i<(DB.sales||[]).length; i++) {
+    if((DB.sales[i].bill_no||DB.sales[i].billNo) === billNo) { saleIdx=i; break; }
+  }
+  if(saleIdx<0) { toast('Bill not found','e'); return; }
+
+  var sale   = DB.sales[saleIdx];
+  var items  = (sale.items||[]).map(function(it,j){
+    var rateEl = document.getElementById('re-rate-'+j);
+    var rate   = parseFloat(rateEl?rateEl.value:it.rate)||0;
+    var qty    = parseFloat(it.qty)||1;
+    var amt    = Math.round(rate*qty*100)/100;
+    return Object.assign({}, it, {rate:rate, amount:amt, amt:amt});
+  });
+  var sub   = items.reduce(function(a,it){ return a+parseFloat(it.amount||0); },0);
+  var disc  = parseFloat(sale.discount||0);
+  var gstP  = parseFloat(sale.gst_pct)||18;
+  var after = sub - disc;
+  var tax   = Math.round(after/(1+gstP/100)*100)/100;
+  var gst   = Math.round((after-tax)*100)/100;
+  var paidEl  = document.getElementById('re-paid');
+  var newPaid = parseFloat(paidEl?paidEl.value:sale.paid)||0;
+  var newBal  = Math.max(0, Math.round((after - newPaid)*100)/100);
+
+  // Update local
+  DB.sales[saleIdx] = Object.assign({}, sale, {
+    items:         items,
+    sub:           sub,
+    sub_total:     sub,
+    taxable_value: tax,
+    gst_amt:       gst,
+    cgst:          Math.round((gst/2)*100)/100,
+    sgst:          Math.round((gst/2)*100)/100,
+    total:         after,
+    paid:          newPaid,
+    balance:       newBal,
+    status:        newBal>0?'Follow-up':'Sold'
+  });
+
+  // Update preview if open
+  if(CURRENT_VIEWED_BILL && (CURRENT_VIEWED_BILL.bill_no||CURRENT_VIEWED_BILL.billNo) === billNo) {
+    CURRENT_VIEWED_BILL = DB.sales[saleIdx];
+    var bo = document.getElementById('bill-out');
+    if(bo) bo.innerHTML = renderBillFromRecord(DB.sales[saleIdx]);
+  }
+
+  toast('⏳ Saving rates...');
+  closeRateEditModal();
+
+  var matchQ = (sale._id||sale.id) ? 'id=eq.'+(sale._id||sale.id) : 'bill_no=eq.'+encodeURIComponent(billNo);
+  var patchData = {
+    items:         items,
+    sub_total:     sub,
+    taxable_value: tax,
+    cgst:          Math.round((gst/2)*100)/100,
+    sgst:          Math.round((gst/2)*100)/100,
+    total:         after,
+    paid:          newPaid,
+    balance:       newBal,
+    status:        newBal>0?'Follow-up':'Sold'
+  };
+  // Include subsidy fields if claimed
+  if(sale.subsidy_claimed) {
+    var sFarmerEl = document.getElementById('re-farmer-paid');
+    var sSubEl    = document.getElementById('re-subsidy-amt');
+    var sStatusEl = document.getElementById('re-subsidy-status');
+    if(sFarmerEl) patchData.farmer_paid_amount = parseFloat(sFarmerEl.value)||0;
+    if(sSubEl)    patchData.subsidy_amount     = parseFloat(sSubEl.value)||0;
+    if(sStatusEl) patchData.subsidy_status     = sStatusEl.value||'pending';
+  }
+  console.log('[saveRateEdit] PATCH payload:', JSON.stringify(patchData));
+  sbPatch('sales', matchQ, patchData).then(function(){
+    toast('✅ Rates & payment updated for '+billNo);
+    renderBillsPage();
+    renderToday();
+  }).catch(function(e){
+    toast('Save failed: '+e.message,'e');
+  });
+}
+
 // ── DUE PAYMENT FUNCTIONS ──
 var PAYING_BILL = null;
 
@@ -2110,7 +2656,7 @@ function onPeriodChange() {
 
 
 function clearAllFilters() {
-  var ids = ['bill-filter','bill-period','bill-search','bill-custom-date','bill-custom-month','bill-custom-year','bill-from-date','bill-to-date'];
+  var ids = ['bill-filter','bill-period','bill-search','bill-custom-date','bill-custom-month','bill-custom-year','bill-from-date','bill-to-date','bill-filter-product'];
   for(var i=0; i<ids.length; i++) {
     var el = document.getElementById(ids[i]);
     if(el) {
@@ -2165,6 +2711,90 @@ function matchesPeriod(billDate, period) {
   return true;
 }
 
+
+// ── SUBSIDY RATE MANAGER ──
+function renderSubsidyPage() {
+  var cont = document.getElementById('subsidy-list');
+  if(!cont) return;
+  var q = (((document.getElementById('subsidy-search')||{}).value)||'').toLowerCase();
+  var prods = (DB.products||[]).filter(function(p){
+    var nm = (p.n||p.name||'').toLowerCase();
+    return !q || nm.indexOf(q) > -1;
+  });
+
+  if(!prods.length) {
+    cont.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px;">No products found</div>';
+    return;
+  }
+
+  var html = '';
+  for(var i=0; i<prods.length; i++) {
+    var p = prods[i];
+    var rate = parseFloat(p.rate||0);
+    var sub  = parseFloat(p.subsidy_amount||0);
+    var farmerPay = Math.max(0, rate - sub);
+    var pid = p._id || p.id || ('idx'+i);
+    var pname = (p.n||p.name||'').replace(/'/g,'&#39;');
+
+    html += '<div style="background:#fff;border:1.5px solid '+(sub>0?'#fcd34d':'#e2e8f0')+';border-radius:12px;padding:12px;'+(sub>0?'background:#fffbeb;':'')+'">'
+      + '<div style="font-size:13px;font-weight:800;color:#1b4332;margin-bottom:2px;">'+pname+'</div>'
+      + '<div style="font-size:10px;color:#64748b;margin-bottom:8px;">'+(p.category||p.cat||'')+' · Rate: ₹'+rate.toFixed(2)+' / '+(p.unit||'Nos')+'</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;">'
+      + '<div>'
+        + '<label style="font-size:10px;font-weight:700;color:#b45309;display:block;margin-bottom:3px;">🏛️ Subsidy ₹/unit</label>'
+        + '<input type="number" id="sub-amt-'+i+'" value="'+sub.toFixed(2)+'" min="0" step="0.01" oninput="calcFarmerPay('+i+')" '
+          +'style="width:100%;padding:8px;border:1.5px solid #fcd34d;border-radius:8px;font-size:13px;font-weight:700;font-family:monospace;color:#92400e;background:#fff;outline:none;text-align:right;"/>'
+      + '</div>'
+      + '<div>'
+        + '<label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">👨‍🌾 Farmer Pays ₹/unit</label>'
+        + '<div id="farmer-pay-'+i+'" style="width:100%;padding:8px;border:1.5px solid #86efac;border-radius:8px;font-size:13px;font-weight:800;font-family:monospace;color:#166534;background:#f0fdf4;text-align:right;">₹'+farmerPay.toFixed(2)+'</div>'
+      + '</div>'
+      + '</div>'
+      + '<button onclick="saveSubsidyRate('+i+',\''+pid+'\',\''+pname+'\')" style="width:100%;margin-top:8px;padding:8px;background:#1b4332;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">💾 Save Subsidy Rate</button>'
+      + '</div>';
+  }
+  cont.innerHTML = html;
+}
+
+function calcFarmerPay(idx) {
+  var p = (DB.products||[])[idx];
+  if(!p) return;
+  var rate = parseFloat(p.rate||0);
+  var amtEl = document.getElementById('sub-amt-'+idx);
+  var sub  = parseFloat(amtEl?amtEl.value:0)||0;
+  var farmerPay = Math.max(0, rate - sub);
+  var el = document.getElementById('farmer-pay-'+idx);
+  if(el) el.textContent = '₹'+farmerPay.toFixed(2);
+}
+
+function saveSubsidyRate(idx, pid, pname) {
+  var p = (DB.products||[])[idx];
+  if(!p) return;
+  var amtEl = document.getElementById('sub-amt-'+idx);
+  var sub = parseFloat(amtEl?amtEl.value:0)||0;
+
+  // Update local
+  DB.products[idx].subsidy_amount = sub;
+  if(typeof PRODUCTS!=='undefined' && PRODUCTS[idx]) PRODUCTS[idx].subsidy_amount = sub;
+
+  toast('⏳ Saving subsidy rate...');
+  var matchQ = pid && pid.indexOf('idx')!==0 ? 'id=eq.'+pid : 'name=eq.'+encodeURIComponent(pname);
+  sbPatch('products', matchQ, { subsidy_amount: sub })
+    .then(function(){
+      toast('✅ '+pname+': Subsidy ₹'+sub.toFixed(2)+'/unit saved');
+      // Broadcast to other apps
+      try {
+        var bc = new BroadcastChannel('sf_products_sync');
+        bc.postMessage({type:'products_update', data:DB.products, ts:Date.now()});
+        bc.close();
+      } catch(e){}
+    })
+    .catch(function(e){
+      toast('Save failed: '+e.message+' — run subsidy SQL fix','e');
+      console.error('[Subsidy Rate] PATCH failed:', e.message);
+    });
+}
+
 function renderBillsPage() {
   var cont = document.getElementById('bills-list');
   if(!cont) return;
@@ -2192,13 +2822,23 @@ function renderBillsPage() {
   var query = (((document.getElementById('bill-search')||{}).value)||'').toLowerCase();
   var today = new Date().toISOString().slice(0,10);
 
+  var productQ = (((document.getElementById('bill-filter-product')||{}).value)||'').toLowerCase().trim();
   bills = bills.filter(function(b){
     // Period filter
     if(!matchesPeriod(b.bill_date||'', period)) return false;
     // Status filter
     if(filter === 'due'  && parseFloat(b.balance||0) <= 0) return false;
     if(filter === 'paid' && parseFloat(b.balance||0) > 0) return false;
-    // Search
+    // Product filter
+    if(productQ) {
+      var items = b.items||[];
+      var found = false;
+      for(var _pi=0; _pi<items.length; _pi++) {
+        if((items[_pi].name||'').toLowerCase().indexOf(productQ) > -1) { found=true; break; }
+      }
+      if(!found) return false;
+    }
+    // Search (name, mobile, bill_no, village)
     if(query) {
       var s = ((b.bill_no||'')+(b.farmer_name||b.name||'')+(b.mobile||'')+(b.village||'')).toLowerCase();
       if(s.indexOf(query) === -1) return false;
@@ -2243,6 +2883,7 @@ function renderBillsPage() {
       parts.push('📅 '+(periodLabels[period]||period));
     }
     if(filter && filter !== 'all') parts.push('💳 '+(filter==='due'?'Due Only':'Paid Only'));
+    if(productQ) parts.push('🌿 "'+productQ+'"');
     if(query) parts.push('🔍 "'+query+'"');
     if(parts.length) {
       filterInd.innerHTML = 'Filtered: '+parts.join(' &middot; ')+' <span onclick="clearAllFilters()" style="color:#dc2626;cursor:pointer;margin-left:6px;text-decoration:underline;">Clear</span>';
@@ -2276,7 +2917,10 @@ function renderBillsPage() {
     var itemCount = b.items ? b.items.length : (b.item_count || '—');
     var balDue = parseFloat(b.balance||0);
 
-    html += '<div class="bill-item" style="border-left:4px solid ' + (isToday?'#2d6a4f':'#e2e8f0') + ';cursor:pointer;background:#fff;border-radius:10px;padding:12px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.05);transition:all .15s;" onclick="viewBill(\''+safeBn+'\')">'
+    html += '<div class="bill-item" id="bill-card-'+safeBn+'" style="border-left:4px solid '+(isToday?'#2d6a4f':'#e2e8f0')+';cursor:pointer;background:#fff;border-radius:10px;padding:12px 12px 12px 24px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.05);" onclick="viewBill(this.dataset.bn)" data-bn="'+safeBn+'">'
+    + '<div style="display:none;position:absolute;left:4px;top:50%;transform:translateY(-50%);" id="chk-wrap-'+safeBn+'">'
+    + '<input type="checkbox" id="chk-'+safeBn+'" onclick="event.stopPropagation();toggleBillCheck(this.closest(".bill-item").dataset.bn)" style="width:16px;height:16px;cursor:pointer;"/>'
+    + '</div>'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:11px;font-weight:800;color:#1b4332;font-family:monospace;">' + bn + '</div>'
@@ -2312,7 +2956,8 @@ function renderBillsPage() {
       + '<button onclick="event.stopPropagation();waSavedBill(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#25d366;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">💬 WA</button>'
       + (balDue > 0 ? '<button onclick="event.stopPropagation();openDuePayModal(\''+safeBn+'\')" style="flex:1;min-width:80px;padding:6px 8px;background:linear-gradient(135deg,#b45309,#e9a319);color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;">💳 Pay Due</button>' : '')
       + '<button onclick="event.stopPropagation();viewBillPaymentHistory(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#7c3aed;border:1px solid #7c3aed;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">📜 Hist</button>'
-      + (parseFloat(b.balance||0)<=0 ? '<button onclick="event.stopPropagation();toggleBillSubsidy(\''+safeBn+'\')" style="flex:1;min-width:70px;padding:6px 8px;background:'+(b.subsidy_claimed?'#fef9c3':'#fff')+';color:#92400e;border:1px solid #fcd34d;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">'+(b.subsidy_claimed?'🏛️ Subsidy':'☐ Subsidy')+'</button>' : '')
+      + '<button onclick="event.stopPropagation();openRateEditModal(\''+safeBn+'\')" style="flex:1;min-width:60px;padding:6px 8px;background:#fff;color:#0369a1;border:1px solid #7dd3fc;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Rate</button>'
+      + (parseFloat(b.balance||0)<=0 ? '<button onclick="event.stopPropagation();toggleBillSubsidy(this.dataset.bn)" data-bn="'+safeBn+'" style="flex:1;min-width:70px;padding:6px 8px;background:'+(b.subsidy_claimed?'#fef9c3':'#fff')+';color:#92400e;border:1px solid #fcd34d;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">'+(b.subsidy_claimed?'🏛️ Subsidy':'☐ Subsidy')+'</button>' : '')
       + '</div>'
     + '</div>';
   }
@@ -2578,6 +3223,7 @@ function goTab(id, el) {
       testSBConnection().then(function(ok){ if(ok) doRefreshStock(); });
     }
   }
+  if(id==='subsidy') { try { renderSubsidyPage(); } catch(e){} }
 }
 
 // (duplicate toast removed — using earlier version)
@@ -2758,6 +3404,8 @@ function calcTotals() {
     var sp = br.querySelector('span');
     if(sp) sp.textContent = bal>0 ? 'Balance Due' : '✅ Fully Paid';
   }
+
+  if(typeof SUBSIDY_CLAIMED!=='undefined' && SUBSIDY_CLAIMED) { try{showSubsidyPreview();}catch(e){} }
 }
 
 function collectItems() {
@@ -2818,6 +3466,29 @@ function _doGenerateBill(items, fetchedBillNo) {
   var billNo   = fetchedBillNo || ((document.getElementById('s-billno') || {}).value) || newBillNo();
   // Update form field with the fresh bill number
   try { var _bnEl = document.getElementById('s-billno'); if(_bnEl) _bnEl.value = billNo; } catch(e){}
+
+  // ── SUBSIDY CALCULATION (per item, using product.subsidy_amount) ──
+  var totalSubsidyAmt = 0;
+  var totalFarmerPaidForSubsidizedItems = 0;
+  if(typeof SUBSIDY_CLAIMED !== 'undefined' && SUBSIDY_CLAIMED) {
+    for(var _si2=0; _si2<items.length; _si2++) {
+      var _it2 = items[_si2];
+      var _itName2 = (_it2.name||'').trim().toLowerCase();
+      for(var _pi2=0; _pi2<(DB.products||[]).length; _pi2++) {
+        var _p2 = DB.products[_pi2];
+        var _pName2 = ((_p2.n||_p2.name||'')+'').trim().toLowerCase();
+        if(_pName2 === _itName2) {
+          var _subPerUnit = parseFloat(_p2.subsidy_amount)||0;
+          var _qty2 = parseFloat(_it2.qty)||0;
+          var _itemSubsidy = Math.round(_subPerUnit * _qty2 * 100)/100;
+          _it2.subsidy_amount = _itemSubsidy;
+          _it2.farmer_paid    = Math.round(((parseFloat(_it2.amount||_it2.amt||0)) - _itemSubsidy)*100)/100;
+          totalSubsidyAmt += _itemSubsidy;
+          break;
+        }
+      }
+    }
+  }
   var billDt   = (document.getElementById('s-date')    ||{}).value || new Date().toISOString().slice(0,10);
   var fid      = (document.getElementById('s-fid')     ||{}).value || '';
   var regid    = (document.getElementById('s-regid')   ||{}).value || '';
@@ -3101,6 +3772,8 @@ function _doGenerateBill(items, fetchedBillNo) {
     b2b_data:    b2bData || null,
     status:      bal > 0 ? 'Follow-up' : 'Sold',
     subsidy_claimed: typeof SUBSIDY_CLAIMED !== 'undefined' ? SUBSIDY_CLAIMED : false,
+    subsidy_amount: (typeof totalSubsidyAmt !== 'undefined' ? totalSubsidyAmt : 0),
+    farmer_paid_amount: (typeof totalSubsidyAmt !== 'undefined' ? Math.max(0, total - totalSubsidyAmt) : total),
     coupon_used: coupon
   };
 
@@ -5654,6 +6327,76 @@ window.addEventListener('DOMContentLoaded', appInit);
     </div>
     <button onclick="saveStockAdjust()" style="width:100%;padding:13px;background:linear-gradient(135deg,#1b4332,#2d6a4f);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">
       Save Adjustment
+    </button>
+  </div>
+</div>
+
+
+<!-- RATE EDIT MODAL -->
+<div id="re-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10001;align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;width:100%;max-width:540px;border-radius:24px 24px 0 0;padding:20px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:17px;font-weight:800;color:#0369a1;">✏️ Edit Item Rates</div>
+      <button onclick="closeRateEditModal()" style="background:#f1f5f9;border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;font-family:inherit;">✕</button>
+    </div>
+    <div style="background:#eff6ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;">
+      <div id="re-billno" style="font-family:monospace;font-weight:800;color:#0369a1;"></div>
+      <div id="re-customer" style="font-weight:700;margin-top:2px;"></div>
+    </div>
+    <!-- Column Headers -->
+    <div style="display:grid;grid-template-columns:2fr 0.7fr 0.9fr 0.9fr;gap:6px;padding:0 0 6px 0;border-bottom:2px solid #e0f2fe;">
+      <div style="font-size:10px;font-weight:700;color:#64748b;">Product</div>
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-align:center;">Qty</div>
+      <div style="font-size:10px;font-weight:700;color:#0369a1;text-align:center;">Rate ₹</div>
+      <div style="font-size:10px;font-weight:700;color:#64748b;text-align:right;">Amount</div>
+    </div>
+    <div id="re-items-list" style="margin-bottom:12px;"></div>
+    <!-- New Totals -->
+    <div id="re-new-total" style="background:#f0fdf4;border-radius:10px;padding:12px;margin-bottom:10px;border:1px solid #86efac;"></div>
+
+    <!-- Paid Amount (editable) -->
+    <div style="background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+      <label style="font-size:11px;font-weight:700;color:#1d4ed8;display:block;margin-bottom:5px;">💰 Amount Paid by Customer (₹)</label>
+      <input type="number" id="re-paid" min="0" step="0.01" oninput="updateReBalance()"
+        style="width:100%;padding:10px;border:1.5px solid #93c5fd;border-radius:8px;font-size:16px;font-weight:800;font-family:monospace;color:#1d4ed8;text-align:right;outline:none;"/>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button onclick="setRePaidPct(0)"   style="flex:1;padding:5px;background:#fff;border:1px solid #93c5fd;border-radius:6px;font-size:10px;font-weight:700;color:#1d4ed8;cursor:pointer;">₹0</button>
+        <button onclick="setRePaidPct(50)"  style="flex:1;padding:5px;background:#fff;border:1px solid #93c5fd;border-radius:6px;font-size:10px;font-weight:700;color:#1d4ed8;cursor:pointer;">50%</button>
+        <button onclick="setRePaidPct(100)" style="flex:1;padding:5px;background:#1d4ed8;border:1px solid #1d4ed8;border-radius:6px;font-size:10px;font-weight:700;color:#fff;cursor:pointer;">Full</button>
+      </div>
+      <div id="re-balance-preview" style="margin-top:6px;font-size:12px;font-weight:700;"></div>
+    </div>
+
+    <!-- SUBSIDY SECTION (shown only if bill has subsidy_claimed) -->
+    <div id="re-subsidy-section" style="display:none;background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:8px;">🏛️ Subsidy Details</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#166534;display:block;margin-bottom:3px;">👨‍🌾 Farmer Paid ₹</label>
+          <input type="number" id="re-farmer-paid" min="0" step="0.01" oninput="syncSubsidyFromFarmer()"
+            style="width:100%;padding:8px;border:1.5px solid #86efac;border-radius:7px;font-size:13px;font-weight:800;font-family:monospace;color:#166534;background:#f0fdf4;text-align:right;outline:none;"/>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;color:#92400e;display:block;margin-bottom:3px;">🏛️ Govt Subsidy ₹</label>
+          <input type="number" id="re-subsidy-amt" min="0" step="0.01" oninput="syncSubsidyFromGovt()"
+            style="width:100%;padding:8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:13px;font-weight:800;font-family:monospace;color:#92400e;background:#fff;text-align:right;outline:none;"/>
+        </div>
+      </div>
+
+      <div style="margin-bottom:6px;">
+        <label style="font-size:10px;font-weight:700;color:#64748b;display:block;margin-bottom:3px;">Subsidy Status</label>
+        <select id="re-subsidy-status" style="width:100%;padding:8px;border:1.5px solid #fcd34d;border-radius:7px;font-size:12px;font-weight:700;font-family:inherit;background:#fff;">
+          <option value="pending">⏳ Pending — not yet received from Govt</option>
+          <option value="received">✅ Received — Govt subsidy credited</option>
+        </select>
+      </div>
+
+      <div id="re-subsidy-sum" style="font-size:11px;color:#92400e;font-weight:700;text-align:center;padding-top:4px;border-top:1px dashed #ca8a04;"></div>
+    </div>
+
+    <button onclick="saveRateEdit()" style="width:100%;padding:14px;background:linear-gradient(135deg,#0369a1,#0284c7);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit;">
+      💾 Save Rate &amp; Payment
     </button>
   </div>
 </div>
